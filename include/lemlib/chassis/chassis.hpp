@@ -4,6 +4,7 @@
 #include "pros/imu.hpp"
 #include "lemlib/asset.hpp"
 #include "lemlib/chassis/trackingWheel.hpp"
+#include "lemlib/chassis/abstractTrackingWheel.hpp"
 #include "lemlib/pose.hpp"
 #include "lemlib/pid.hpp"
 #include "lemlib/exitcondition.hpp"
@@ -40,12 +41,12 @@ class OdomSensors {
          *                     &imu); // IMU
          * @endcode
          */
-        OdomSensors(TrackingWheel* vertical1, TrackingWheel* vertical2, TrackingWheel* horizontal1,
-                    TrackingWheel* horizontal2, pros::Imu* imu);
-        TrackingWheel* vertical1;
-        TrackingWheel* vertical2;
-        TrackingWheel* horizontal1;
-        TrackingWheel* horizontal2;
+        OdomSensors(AbstractTrackingWheel* vertical1, AbstractTrackingWheel* vertical2, AbstractTrackingWheel* horizontal1,
+                    AbstractTrackingWheel* horizontal2, pros::Imu* imu);
+        AbstractTrackingWheel* vertical1;
+        AbstractTrackingWheel* vertical2;
+        AbstractTrackingWheel* horizontal1;
+        AbstractTrackingWheel* horizontal2;
         pros::Imu* imu;
 };
 

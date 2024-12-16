@@ -7,10 +7,11 @@
 #include "lemlib/chassis/chassis.hpp"
 #include "lemlib/chassis/odom.hpp"
 #include "lemlib/chassis/trackingWheel.hpp"
+#include "lemlib/chassis/abstractTrackingWheel.hpp"
 #include "pros/rtos.hpp"
 
-lemlib::OdomSensors::OdomSensors(TrackingWheel* vertical1, TrackingWheel* vertical2, TrackingWheel* horizontal1,
-                                 TrackingWheel* horizontal2, pros::Imu* imu)
+lemlib::OdomSensors::OdomSensors(AbstractTrackingWheel* vertical1, AbstractTrackingWheel* vertical2, AbstractTrackingWheel* horizontal1,
+                                 AbstractTrackingWheel* horizontal2, pros::Imu* imu)
     : vertical1(vertical1),
       vertical2(vertical2),
       horizontal1(horizontal1),

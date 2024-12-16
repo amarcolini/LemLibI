@@ -9,6 +9,7 @@
 #include "lemlib/chassis/odom.hpp"
 #include "lemlib/chassis/chassis.hpp"
 #include "lemlib/chassis/trackingWheel.hpp"
+#include "lemlib/chassis/abstractTrackingWheel.hpp"
 
 // tracking thread
 pros::Task* trackingTask = nullptr;
@@ -107,12 +108,20 @@ void lemlib::update() {
     // 3. Inertial Sensor
     // 4. Drivetrain
     float heading = odomPose.theta;
+
+    bool vertical1IsDrivetrain = (typeid(odomSensors.vertical1) == typeid(TrackingWheel))
+                                     ? (static_cast<TrackingWheel*>(odomSensors.vertical1))->getType()
+                                     : false;
+    bool vertical2IsDrivetrain = (typeid(odomSensors.vertical2) == typeid(TrackingWheel))
+                                     ? (static_cast<TrackingWheel*>(odomSensors.vertical2))->getType()
+                                     : false;
+
     // calculate the heading using the horizontal tracking wheels
     if (odomSensors.horizontal1 != nullptr && odomSensors.horizontal2 != nullptr)
         heading -= (deltaHorizontal1 - deltaHorizontal2) /
                    (odomSensors.horizontal1->getOffset() - odomSensors.horizontal2->getOffset());
     // else, if both vertical tracking wheels aren't substituted by the drivetrain, use the vertical tracking wheels
-    else if (!odomSensors.vertical1->getType() && !odomSensors.vertical2->getType())
+    else if (!vertical1IsDrivetrain && !vertical2IsDrivetrain)
         heading -= (deltaVertical1 - deltaVertical2) /
                    (odomSensors.vertical1->getOffset() - odomSensors.vertical2->getOffset());
     // else, if the inertial sensor exists, use it
@@ -126,10 +135,10 @@ void lemlib::update() {
 
     // choose tracking wheels to use
     // Prioritize non-powered tracking wheels
-    lemlib::TrackingWheel* verticalWheel = nullptr;
-    lemlib::TrackingWheel* horizontalWheel = nullptr;
-    if (!odomSensors.vertical1->getType()) verticalWheel = odomSensors.vertical1;
-    else if (!odomSensors.vertical2->getType()) verticalWheel = odomSensors.vertical2;
+    lemlib::AbstractTrackingWheel* verticalWheel = nullptr;
+    lemlib::AbstractTrackingWheel* horizontalWheel = nullptr;
+    if (!vertical1IsDrivetrain) verticalWheel = odomSensors.vertical1;
+    else if (!vertical2IsDrivetrain) verticalWheel = odomSensors.vertical2;
     else verticalWheel = odomSensors.vertical1;
     if (odomSensors.horizontal1 != nullptr) horizontalWheel = odomSensors.horizontal1;
     else if (odomSensors.horizontal2 != nullptr) horizontalWheel = odomSensors.horizontal2;

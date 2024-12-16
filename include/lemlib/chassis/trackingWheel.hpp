@@ -4,6 +4,7 @@
 #include "pros/motor_group.hpp"
 #include "pros/adi.hpp"
 #include "pros/rotation.hpp"
+#include "lemlib/chassis/abstractTrackingWheel.hpp"
 
 namespace lemlib {
 
@@ -26,7 +27,7 @@ constexpr float NEW_4_HALF = 3.995;
 constexpr float OLD_4_HALF = 4.175;
 } // namespace Omniwheel
 
-class TrackingWheel {
+class TrackingWheel : public AbstractTrackingWheel {
     public:
         /**
          * @brief Create a new tracking wheel
@@ -119,54 +120,11 @@ class TrackingWheel {
          * @endcode
          */
         TrackingWheel(pros::MotorGroup* motors, float wheelDiameter, float distance, float rpm);
-        /**
-         * @brief Reset the tracking wheel position to 0
-         *
-         * If you are using odometry provided by LemLib, this will automatically be called when
-         * the chassis is calibrated
-         *
-         * @b Example
-         * @code {.cpp}
-         * void initialize() {
-         *     exampleTrackingWheel.reset();
-         *     // this will now return 0 inches traveled
-         *     exampleTrackingWheel.getDistanceTraveled();
-         * }
-         * @endcode
-         */
+
         void reset();
-        /**
-         * @brief Get the distance traveled by the tracking wheel
-         *
-         * @return float distance traveled in inches
-         *
-         * @b Example
-         * @code {.cpp}
-         * void initialize() {
-         *     while (true) {
-         *         // print the distance traveled by the tracking wheel to the terminal
-         *         std::cout << "distance: " << exampleTrackingWheel.getDistanceTraveled() << std::endl;
-         *         pros::delay(10);
-         *     }
-         * }
-         */
         float getDistanceTraveled();
-        /**
-         * @brief Get the offset of the tracking wheel from the center of rotation
-         *
-         * @return float offset in inches
-         *
-         * @b Example
-         * @code {.cpp}
-         * void initialize() {
-         *     // create a tracking wheel with an offset of 0.5 inches
-         *     lemlib::TrackingWheel exampleTrackingWheel(&exampleEncoder, lemlib::Omniwheel::NEW_275, 0.5);
-         *     // this prints 0.5 to the terminal, the offset of the tracking wheel
-         *     std::cout << "offset: " << exampleTrackingWheel.getOffset() << std::endl;
-         * }
-         * @endcode
-         */
         float getOffset();
+        
         /**
          * @brief Get the type of tracking wheel
          *
