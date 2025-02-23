@@ -121,9 +121,9 @@ class TrackingWheel : public AbstractTrackingWheel {
          */
         TrackingWheel(pros::MotorGroup* motors, float wheelDiameter, float distance, float rpm);
 
-        void reset();
-        float getDistanceTraveled();
-        float getOffset();
+        virtual void reset();
+        virtual float getDistanceTraveled();
+        virtual float getOffset();
         
         /**
          * @brief Get the type of tracking wheel
