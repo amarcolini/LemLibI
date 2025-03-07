@@ -311,7 +311,7 @@ class Chassis {
                 Odometry* odom, DriveCurve* throttleCurve = &defaultDriveCurve,
                 DriveCurve* steerCurve = &defaultDriveCurve);
         /**
-         * @brief Calibrate the chassis sensors. THis should be called in the initialize function
+         * @brief Calibrate the chassis sensors. THis should be called in the initialize function. Also calls Odometry::initTask().
          *
          * @param calibrateIMU whether the IMU should be calibrated. true by default
          *
@@ -332,6 +332,7 @@ class Chassis {
          * @endcode
          */
         void calibrate(bool calibrateIMU = true);
+
         /**
          * @brief Set the pose of the chassis
          *

@@ -9,7 +9,7 @@ namespace lemlib {
 /**
  * @brief class containing the sensors used for odometry
  */
-class DeadReckoningOdom : Odometry {
+class TrackingWheelOdom : public Odometry {
     public:
         enum class HeadingSource {
             Vertical,
@@ -40,7 +40,7 @@ class DeadReckoningOdom : Odometry {
          *                     &imu); // IMU
          * @endcode
          */
-        DeadReckoningOdom(AbstractTrackingWheel* vertical1, AbstractTrackingWheel* vertical2,
+        TrackingWheelOdom(AbstractTrackingWheel* vertical1, AbstractTrackingWheel* vertical2,
                           AbstractTrackingWheel* horizontal1, AbstractTrackingWheel* horizontal2, pros::Imu* imu,
                           HeadingSource headingSource);
 
@@ -54,10 +54,10 @@ class DeadReckoningOdom : Odometry {
         HeadingSource headingSource;
 
         void update();
-        void init();
+        void calibrate(bool calibrateIMU = true);
     protected:
         Pose _getPose();
-        void _setPose();
+        void _setPose(Pose pose);
         Pose _getSpeed();
         Pose _getLocalSpeed();
     private:

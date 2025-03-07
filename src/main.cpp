@@ -1,6 +1,7 @@
 #include "main.h"
 #include "lemlib/api.hpp" // IWYU pragma: keep
 #include "lemlib/chassis/chassis.hpp"
+#include "lemlib/chassis/trackingWheelOdom.hpp"
 
 // controller
 pros::Controller controller(pros::E_CONTROLLER_MASTER);
@@ -57,12 +58,12 @@ lemlib::ControllerSettings angularController(2, // proportional gain (kP)
 );
 
 // sensors for odometry
-lemlib::OdomSensors sensors(&vertical, // vertical tracking wheel
+lemlib::TrackingWheelOdom sensors(&vertical, // vertical tracking wheel
                             nullptr, // vertical tracking wheel 2, set to nullptr as we don't have a second one
                             &horizontal, // horizontal tracking wheel
                             nullptr, // horizontal tracking wheel 2, set to nullptr as we don't have a second one
                             &imu, // inertial sensor
-                            lemlib::OdomSensors::HeadingSource::IMU
+                            lemlib::TrackingWheelOdom::HeadingSource::IMU
 );
 
 // input curve for throttle input during driver control
@@ -78,7 +79,7 @@ lemlib::ExpoDriveCurve steerCurve(3, // joystick deadband out of 127
 );
 
 // create the chassis
-lemlib::Chassis chassis(drivetrain, linearController, angularController, sensors, &throttleCurve, &steerCurve);
+lemlib::Chassis chassis(drivetrain, linearController, angularController, &sensors, &throttleCurve, &steerCurve);
 
 /**
  * Runs initialization code. This occurs as soon as the program is started.

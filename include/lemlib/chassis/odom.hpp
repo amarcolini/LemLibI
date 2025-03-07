@@ -42,6 +42,8 @@ class Odometry {
         //  */
         // Pose estimatePose(float time, bool radians = false);
 
+        void initTask();
+
         /**
          * @brief Update the pose of the robot
          *
@@ -51,10 +53,10 @@ class Odometry {
          * @brief Initialize the odometry system
          *
          */
-        virtual void init() = 0;
+        virtual void calibrate(bool calibrateIMU = true) = 0;
     protected:
         virtual Pose _getPose() = 0;
-        virtual void _setPose() = 0;
+        virtual void _setPose(Pose pose) = 0;
         virtual Pose _getSpeed() = 0;
         virtual Pose _getLocalSpeed() = 0;
     private:

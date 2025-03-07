@@ -1,5 +1,4 @@
 #include <math.h>
-#include "deadReckoning.hpp"
 #include "pros/imu.hpp"
 #include "pros/motors.h"
 #include "pros/rtos.h"
@@ -7,19 +6,7 @@
 #include "lemlib/util.hpp"
 #include "lemlib/chassis/chassis.hpp"
 #include "lemlib/chassis/odom.hpp"
-#include "lemlib/chassis/trackingWheel.hpp"
-#include "lemlib/chassis/abstractTrackingWheel.hpp"
 #include "pros/rtos.hpp"
-
-lemlib::OdomSensors::OdomSensors(AbstractTrackingWheel* vertical1, AbstractTrackingWheel* vertical2,
-                                 AbstractTrackingWheel* horizontal1, AbstractTrackingWheel* horizontal2, pros::Imu* imu, HeadingSource headingSource)
-    : vertical1(vertical1),
-      vertical2(vertical2),
-      horizontal1(horizontal1),
-      horizontal2(horizontal2),
-      imu(imu),
-      headingSource(headingSource) {
-}
 
 lemlib::Drivetrain::Drivetrain(pros::MotorGroup* leftMotors, pros::MotorGroup* rightMotors, float trackWidth,
                                float wheelDiameter, float rpm, float horizontalDrift)
@@ -31,11 +18,11 @@ lemlib::Drivetrain::Drivetrain(pros::MotorGroup* leftMotors, pros::MotorGroup* r
       horizontalDrift(horizontalDrift) {}
 
 lemlib::Chassis::Chassis(Drivetrain drivetrain, ControllerSettings linearSettings, ControllerSettings angularSettings,
-                         OdomSensors sensors, DriveCurve* throttleCurve, DriveCurve* steerCurve)
+                         Odometry* odometry, DriveCurve* throttleCurve, DriveCurve* steerCurve)
     : drivetrain(drivetrain),
       lateralSettings(linearSettings),
       angularSettings(angularSettings),
-      sensors(sensors),
+      odom(odometry),
       throttleCurve(throttleCurve),
       steerCurve(steerCurve),
       lateralPID(linearSettings.kP, linearSettings.kI, linearSettings.kD, linearSettings.windupRange, true),
@@ -43,36 +30,25 @@ lemlib::Chassis::Chassis(Drivetrain drivetrain, ControllerSettings linearSetting
       lateralLargeExit(lateralSettings.largeError, lateralSettings.largeErrorTimeout),
       lateralSmallExit(lateralSettings.smallError, lateralSettings.smallErrorTimeout),
       angularLargeExit(angularSettings.largeError, angularSettings.largeErrorTimeout),
-      angularSmallExit(angularSettings.smallError, angularSettings.smallErrorTimeout) {}
+      angularSmallExit(angularSettings.smallError, angularSettings.smallErrorTimeout) {
+
+      }
 
 void lemlib::Chassis::calibrate(bool calibrateImu) {
-    // calibrate the IMU if it exists and the user doesn't specify otherwise
-    if (sensors.imu != nullptr && calibrateImu) calibrateIMU(sensors);
-    // initialize odom
-    if (sensors.vertical1 == nullptr && sensors.vertical2 == nullptr) {
-        sensors.vertical1 = new lemlib::TrackingWheel(drivetrain.leftMotors, drivetrain.wheelDiameter,
-                                                      -(drivetrain.trackWidth / 2), drivetrain.rpm);
-        sensors.vertical2 = new lemlib::TrackingWheel(drivetrain.rightMotors, drivetrain.wheelDiameter,
-                                                      drivetrain.trackWidth / 2, drivetrain.rpm);
-    }
-    if (sensors.vertical1 != nullptr) sensors.vertical1->reset();
-    if (sensors.vertical2 != nullptr) sensors.vertical2->reset();
-    if (sensors.horizontal1 != nullptr) sensors.horizontal1->reset();
-    if (sensors.horizontal2 != nullptr) sensors.horizontal2->reset();
-    setSensors(sensors, drivetrain);
-    init();
+    odom->calibrate(calibrateImu);
+    odom->initTask();
     // rumble to controller to indicate success
     pros::c::controller_rumble(pros::E_CONTROLLER_MASTER, ".");
 }
 
 void lemlib::Chassis::setPose(float x, float y, float theta, bool radians) {
-    lemlib::setPose(lemlib::Pose(x, y, theta), radians);
+    odom->setPose(lemlib::Pose(x, y, theta), radians);
 }
 
-void lemlib::Chassis::setPose(Pose pose, bool radians) { lemlib::setPose(pose, radians); }
+void lemlib::Chassis::setPose(Pose pose, bool radians) { odom->setPose(pose, radians); }
 
 lemlib::Pose lemlib::Chassis::getPose(bool radians, bool standardPos) {
-    Pose pose = lemlib::getPose(true);
+    Pose pose = odom->getPose(true);
     if (standardPos) pose.theta = M_PI_2 - pose.theta;
     if (!radians) pose.theta = radToDeg(pose.theta);
     return pose;
@@ -125,7 +101,7 @@ bool lemlib::Chassis::isInMotion() const { return this->motionRunning; }
 
 void lemlib::Chassis::resetLocalPosition() {
     float theta = this->getPose().theta;
-    lemlib::setPose(lemlib::Pose(0, 0, theta), false);
+    odom->setPose(lemlib::Pose(0, 0, theta), false);
 }
 
 void lemlib::Chassis::setBrakeMode(pros::motor_brake_mode_e mode) {

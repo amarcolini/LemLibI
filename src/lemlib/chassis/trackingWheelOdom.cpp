@@ -7,22 +7,47 @@
 #include "lemlib/logger/logger.hpp"
 #include "pros/rtos.hpp"
 #include "lemlib/util.hpp"
-#include "lemlib/chassis/odom.hpp"
-#include "lemlib/chassis/deadReckoning.hpp"
-#include "lemlib/chassis/chassis.hpp"
+#include "lemlib/chassis/trackingWheelOdom.hpp"
 #include "lemlib/chassis/trackingWheel.hpp"
 #include "lemlib/chassis/abstractTrackingWheel.hpp"
 
-lemlib::Pose lemlib::DeadReckoningOdom::_getPose() {
-    return odomPose;
+void lemlib::TrackingWheelOdom::_setPose(Pose pose) {
+    odomPose = pose;
 }
 
-lemlib::Pose lemlib::DeadReckoningOdom::_getSpeed() {
-    return odomSpeed;
-}
+lemlib::Pose lemlib::TrackingWheelOdom::_getPose() { return odomPose; }
 
-lemlib::Pose lemlib::DeadReckoningOdom::_getLocalSpeed() {
-    return odomLocalSpeed;
+lemlib::Pose lemlib::TrackingWheelOdom::_getSpeed() { return odomSpeed; }
+
+lemlib::Pose lemlib::TrackingWheelOdom::_getLocalSpeed() { return odomLocalSpeed; }
+
+lemlib::TrackingWheelOdom::TrackingWheelOdom(AbstractTrackingWheel* vertical1, AbstractTrackingWheel* vertical2,
+                                             AbstractTrackingWheel* horizontal1, AbstractTrackingWheel* horizontal2,
+                                             pros::Imu* imu, HeadingSource headingSource)
+    : vertical1(vertical1),
+      vertical2(vertical2),
+      horizontal1(horizontal1),
+      horizontal2(horizontal2),
+      imu(imu),
+      headingSource(headingSource),
+      odomPose({0.0, 0.0, 0.0}),
+      odomSpeed({0.0, 0.0, 0.0}),
+      odomLocalSpeed({0.0, 0.0, 0.0}) {}
+
+void lemlib::TrackingWheelOdom::calibrate(bool calibrateIMU) {
+    // calibrate the IMU if it exists and the user doesn't specify otherwise
+    if (imu != nullptr && calibrateIMU) this->calibrateIMU();
+    // initialize odom
+    // if (vertical1 == nullptr && vertical2 == nullptr) {
+    //     vertical1 = new lemlib::TrackingWheel(drivetrain.leftMotors, drivetrain.wheelDiameter,
+    //                                                   -(drivetrain.trackWidth / 2), drivetrain.rpm);
+    //     vertical2 = new lemlib::TrackingWheel(drivetrain.rightMotors, drivetrain.wheelDiameter,
+    //                                                   drivetrain.trackWidth / 2, drivetrain.rpm);
+    // }
+    if (vertical1 != nullptr) vertical1->reset();
+    if (vertical2 != nullptr) vertical2->reset();
+    if (horizontal1 != nullptr) horizontal1->reset();
+    if (horizontal2 != nullptr) horizontal2->reset();
 }
 
 /**
@@ -30,7 +55,7 @@ lemlib::Pose lemlib::DeadReckoningOdom::_getLocalSpeed() {
  *
  * @param sensors reference to the sensors struct
  */
-void lemlib::DeadReckoningOdom::calibrateIMU() {
+void lemlib::TrackingWheelOdom::calibrateIMU() {
     int attempt = 1;
     bool calibrated = false;
     // calibrate inertial, and if calibration fails, then repeat 5 times or until successful
@@ -56,7 +81,7 @@ void lemlib::DeadReckoningOdom::calibrateIMU() {
     }
 }
 
-void lemlib::DeadReckoningOdom::update() {
+void lemlib::TrackingWheelOdom::update() {
     // TODO: add particle filter
     // get the current sensor values
     float vertical1Raw = 0;
@@ -92,26 +117,21 @@ void lemlib::DeadReckoningOdom::update() {
     // 4. Drivetrain
     float heading = odomPose.theta;
 
-    bool vertical1IsDrivetrain = (typeid(vertical1) == typeid(TrackingWheel))
-                                     ? (static_cast<TrackingWheel*>(vertical1))->getType() == 1
-                                     : false;
-    bool vertical2IsDrivetrain = (typeid(vertical2) == typeid(TrackingWheel))
-                                     ? (static_cast<TrackingWheel*>(vertical2))->getType() == 1
-                                     : false;
+    bool vertical1IsDrivetrain =
+        (typeid(vertical1) == typeid(TrackingWheel)) ? (static_cast<TrackingWheel*>(vertical1))->getType() == 1 : false;
+    bool vertical2IsDrivetrain =
+        (typeid(vertical2) == typeid(TrackingWheel)) ? (static_cast<TrackingWheel*>(vertical2))->getType() == 1 : false;
 
     // calculate the heading using the horizontal tracking wheels
-    if (headingSource == DeadReckoningOdom::HeadingSource::Horizontal && horizontal1 != nullptr &&
+    if (headingSource == TrackingWheelOdom::HeadingSource::Horizontal && horizontal1 != nullptr &&
         horizontal2 != nullptr)
-        heading -= (deltaHorizontal1 - deltaHorizontal2) /
-                   (horizontal1->getOffset() - horizontal2->getOffset());
+        heading -= (deltaHorizontal1 - deltaHorizontal2) / (horizontal1->getOffset() - horizontal2->getOffset());
     // else, if both vertical tracking wheels aren't substituted by the drivetrain, use the vertical tracking wheels
-    else if (headingSource == DeadReckoningOdom::HeadingSource::Vertical && vertical1 != nullptr &&
+    else if (headingSource == TrackingWheelOdom::HeadingSource::Vertical && vertical1 != nullptr &&
              vertical2 != nullptr)
-        heading -= (deltaVertical1 - deltaVertical2) /
-                   (vertical1->getOffset() - vertical2->getOffset());
+        heading -= (deltaVertical1 - deltaVertical2) / (vertical1->getOffset() - vertical2->getOffset());
     // else, if the inertial sensor exists, use it
-    else if (headingSource == DeadReckoningOdom::HeadingSource::IMU && imu != nullptr)
-        heading += deltaImu;
+    else if (headingSource == TrackingWheelOdom::HeadingSource::IMU && imu != nullptr) heading += deltaImu;
 
     float deltaHeading = heading - odomPose.theta;
     float avgHeading = odomPose.theta + deltaHeading / 2;
