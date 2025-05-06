@@ -44,3 +44,44 @@ std::string lemlib::format_as(const lemlib::Pose& pose) {
     // the double brackets become single brackets
     return fmt::format("lemlib::Pose {{ x: {}, y: {}, theta: {} }}", pose.x, pose.y, pose.theta);
 }
+
+lemlib::Vector lemlib::Vector::operator+(const lemlib::Vector& other) const {
+    return lemlib::Vector(this->x + other.x, this->y + other.y);
+}
+
+lemlib::Vector lemlib::Vector::operator-(const lemlib::Vector& other) const {
+    return lemlib::Vector(this->x - other.x, this->y - other.y);
+}
+
+float lemlib::Vector::operator*(const lemlib::Vector& other) const { return this->x * other.x + this->y * other.y; }
+
+lemlib::Vector lemlib::Vector::operator*(const float& other) const {
+    return lemlib::Vector(this->x * other, this->y * other);
+}
+
+lemlib::Vector lemlib::Vector::operator/(const float& other) const {
+    return lemlib::Vector(this->x / other, this->y / other);
+}
+
+lemlib::Vector lemlib::Vector::lerp(lemlib::Vector other, float t) const {
+    return lemlib::Vector(this->x + (other.x - this->x) * t, this->y + (other.y - this->y) * t);
+}
+
+float lemlib::Vector::distTo(lemlib::Vector other) const { return std::hypot(this->x - other.x, this->y - other.y); }
+
+float lemlib::Vector::angleBetween(lemlib::Vector other) const {
+    return std::atan2(other.y - this->y, other.x - this->x);
+}
+
+lemlib::Vector lemlib::Vector::rotate(float angle) const {
+    return lemlib::Vector(this->x * std::cos(angle) - this->y * std::sin(angle),
+                          this->x * std::sin(angle) + this->y * std::cos(angle));
+}
+
+float lemlib::Vector::norm() const { return sqrtf(x * x + y * y); }
+
+float lemlib::Vector::angle() const { return atan2f(y, x); }
+
+float lemlib::Vector::cross(Vector other) const { return x * other.y - y * other.x; }
+
+float lemlib::Vector::squaredNorm() const { return x * x + y * y; }

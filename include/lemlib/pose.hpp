@@ -215,4 +215,206 @@ class Pose {
  * @return std::string
  */
 std::string format_as(const Pose& pose);
+
+class Vector {
+    public:
+        const float x;
+        const float y;
+        /**
+         * @brief Create a new vector
+         *
+         * @note Vector is unitless. It is up to the user to ensure that the units are consistent.
+         *
+         * @param x component
+         * @param y component
+         *
+         * @b Example
+         * @code {.cpp}
+         * // create a vector
+         * lemlib::Vector vectorA(5, // x position
+         *                    10, // y position
+         *                    1.57); // heading
+         * // create a vector
+         * lemlib::Vector vectorB(5.2, 22); // x and y position, heading defaults to 0
+         * @endcode
+         */
+        Vector(float x = 0.0, float y = 0.0) : x(x), y(y) {};
+        /**
+         * @brief Add a vector to this vector
+         *
+         * @note heading is not modified, and is taken from this vector
+         *
+         * @param other other vector
+         * @return Vector
+         *
+         * @b Example
+         * @code {.cpp}
+         * // create a vector
+         * lemlib::Vector vectorA(5, 10, 1.57);
+         * // create a vector
+         * lemlib::Vector vectorB(5.2, 22, 2.22);
+         * // add the two vectors
+         * lemlib::Vector vectorC = vectorA + vectorB;
+         * // vectorC.x = 10.2, vectorC.y = 32, vectorC.theta = 1.57
+         * @endcode
+         */
+        Vector operator+(const Vector& other) const;
+        /**
+         * @brief Subtract a vector from this vector
+         *
+         * @note heading is not modified, and is taken from this vector
+         *
+         * @param other other vector
+         * @return Vector
+         *
+         * @b Example
+         * @code {.cpp}
+         * // create a vector
+         * lemlib::Vector vectorA(5, 10, 1.57);
+         * // create a vector
+         * lemlib::Vector vectorB(5.2, 22, 2.22);
+         * // subtract the two vectors
+         * lemlib::Vector vectorC = vectorA - vectorB;
+         * // vectorC.x = -0.2, vectorC.y = -12, vectorC.theta = 1.57
+         * @endcode
+         */
+        Vector operator-(const Vector& other) const;
+        /**
+         * @brief Multiply a vector by this vector (dot product)
+         *
+         * @note heading is not considered in this operation
+         *
+         * @param other other vector
+         * @return Vector
+         *
+         * @b Example
+         * @code {.cpp}
+         * // create a vector
+         * lemlib::Vector vectorA(5, 10, 1.57);
+         * // create a vector
+         * lemlib::Vector vectorB(5.2, 22, 2.22);
+         * // multiply the two vectors
+         * float result = vectorA * vectorB; // 246
+         * @endcode
+         */
+        float operator*(const Vector& other) const;
+        /**
+         * @brief Multiply a vector by a float
+         *
+         * @note heading is not considered in this operation
+         *
+         * @param other float
+         * @return Vector
+         *
+         * @b Example
+         * @code {.cpp}
+         * // create a vector
+         * lemlib::Vector vector(1, 2);
+         * // multiply the vector by 4.0
+         * lemlib::Vector result = vector * 4.0;
+         * // result.x = 4, result.y = 8
+         * @endcode
+         */
+        Vector operator*(const float& other) const;
+        /**
+         * @brief Divide a vector by a float
+         *
+         * @note heading is not considered in this operation
+         *
+         * @param other float
+         * @return Vector
+         *
+         * @b Example
+         * @code {.cpp}
+         * // create a vector
+         * lemlib::Vector vector(6, 8);
+         * // divide the vector by 2
+         * lemlib::Vector result = vector / 2;
+         * // result.x = 3, result.y = 4
+         * @endcode
+         */
+        Vector operator/(const float& other) const;
+        /**
+         * @brief Linearly interpolate between two vectors
+         *
+         * @note heading is not considered in this operation
+         *
+         * @param other the other vector
+         * @param t t value
+         * @return Vector
+         *
+         * @b Example
+         * @code {.cpp}
+         * // create vectors
+         * lemlib::Vector vectorA(0, 0);
+         * lemlib::Vector vectorB(0, 2);
+         * // find the vector in between the 2 vectors
+         * lemlib::Vector result = vectorA.lerp(vectorB, 0.5);
+         * // result.x = 0, result.y = 1
+         * @endcode
+         */
+        Vector lerp(Vector other, float t) const;
+        /**
+         * @brief Get the distance between two vectors
+         *
+         * @note heading is not considered in this operation
+         *
+         * @param other the other vector
+         * @return float
+         *
+         * @b Example
+         * @code {.cpp}
+         * // create vectors
+         * lemlib::Vector vectorA(0, 0);
+         * lemlib::Vector vectorB(3, 4);
+         * // find the distance between the vectors
+         * float result = vectorA.distance(vectorB); // result = 5
+         * @endcode
+         */
+        float distTo(Vector other) const;
+        /**
+         * @brief Get the angle between two vectors
+         *
+         * @note heading is not considered in this operation
+         *
+         * @param other the other vector
+         * @return float in radians
+         *
+         * @b Example
+         * @code {.cpp}
+         * // create vectors
+         * lemlib::Vector vectorA(-1, -2);
+         * lemlib::Vector vectorB(2, 1);
+         * // find angle between vectors
+         * float result = vectorA.angle(vectorB); // result = 0.785398
+         * @endcode
+         */
+        float angleBetween(Vector other) const;
+        /**
+         * @brief Rotate a vector by an angle
+         *
+         * @note heading is not considered in this operation
+         *
+         * @param angle angle in radians
+         * @return Vector
+         *
+         * @b Example
+         * @code {.cpp}
+         * // create vector
+         * lemlib::Vector vector(1, 0);
+         * // rotate vector by pi/2
+         * lemlib::Vector result = vector.rotate(M_PI_2);
+         * // result.x = 0, result.y = 1
+         * @endcode
+         */
+        Vector rotate(float angle) const;
+
+        float angle() const;
+
+        float norm() const;
+
+        float cross(Vector other) const;
+
+        float squaredNorm() const;
+};
 } // namespace lemlib
