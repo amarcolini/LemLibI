@@ -40,6 +40,13 @@ lemlib::Pose lemlib::Pose::rotate(float angle) const {
                         this->x * std::sin(angle) + this->y * std::cos(angle), this->theta);
 }
 
+lemlib::Vector lemlib::Pose::vec() const { return Vector(x, y); }
+
+lemlib::Pose::Pose(Vector vec, float theta)
+    : x(vec.x),
+      y(vec.y),
+      theta(theta) {}
+
 std::string lemlib::format_as(const lemlib::Pose& pose) {
     // the double brackets become single brackets
     return fmt::format("lemlib::Pose {{ x: {}, y: {}, theta: {} }}", pose.x, pose.y, pose.theta);

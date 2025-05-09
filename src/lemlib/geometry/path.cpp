@@ -42,6 +42,14 @@ Vector Path::deriv(float s) const {
     return segment.deriv(segment.reparam(remainingDisplacement));
 }
 
+float Path::tangentAngleDeriv(float s) const {
+    auto [segment, remainingDisplacement] = getSegment(s);
+    auto t = segment.reparam(remainingDisplacement);
+    auto d = segment.deriv(t);
+    auto d2 = segment.secondDeriv(t);
+    return (d.x * d2.y - d.y * d2.x);
+}
+
 Vector Path::secondDeriv(float s) const {
     auto [segment, remainingDisplacement] = getSegment(s);
     return segment.secondDeriv(segment.reparam(remainingDisplacement));

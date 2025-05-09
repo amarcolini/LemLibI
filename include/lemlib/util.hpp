@@ -2,16 +2,31 @@
 
 #include <cmath>
 #include <vector>
-#include "lemlib/chassis/chassis.hpp"
+// #include "lemlib/chassis/chassis.hpp"
 #include "lemlib/pose.hpp"
 
 namespace lemlib {
+
+/**
+ * @brief AngularDirection
+ *
+ * When turning, the user may want to specify the direction the robot should turn in.
+ * This enum class has 3 values: CW_CLOCKWISE, CCW_COUNTERCLOCKWISE, and AUTO
+ * AUTO will make the robot turn in the shortest direction, and will be the most used value
+ */
+enum class AngularDirection {
+    CW_CLOCKWISE, /** turn clockwise */
+    CCW_COUNTERCLOCKWISE, /** turn counter-clockwise */
+    AUTO /** turn in the direction with the shortest distance to target */
+};
 
 constexpr float EPSILON = 1e-6;
 
 bool epsilonEquals(float a, float b);
 
 bool epsilonEquals(const Vector& a, const Vector& b);
+
+float wrap(float n, float min, float max);
 
 /**
  * @brief Slew rate limiter

@@ -16,6 +16,10 @@ float lemlib::slew(float target, float current, float maxChange) {
     return current + change;
 }
 
+float lemlib::wrap(float n, float min, float max) {
+    return (n < min) ? max - fmod((min - n), (max - min)) : min + fmod((n - min), (max - min));
+}
+
 constexpr float lemlib::sanitizeAngle(float angle, bool radians) {
     if (radians) return std::fmod(std::fmod(angle, 2 * M_PI) + 2 * M_PI, 2 * M_PI);
     else return std::fmod(std::fmod(angle, 360) + 360, 360);

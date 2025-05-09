@@ -1,5 +1,6 @@
-#include "lemlib/util.hpp"
 #include <cmath>
+#include "lemlib/driveCurve.hpp"
+#include "lemlib/util.hpp"
 
 namespace lemlib {
 ExpoDriveCurve::ExpoDriveCurve(float deadband, float minOutput, float curve)

@@ -31,12 +31,14 @@ class Path {
         // Returns the pose at s units along the path
         Vector get(float s) const;
 
-        Vector operator[](float s) {
+        Vector operator[](float s) const {
             return get(s);
         }
 
         // Returns the derivative of the pose at s units along the path
         Vector deriv(float s) const;
+
+        float tangentAngleDeriv(float s) const;
 
         // Returns the second derivative of the pose at s units along the path
         Vector secondDeriv(float s) const;

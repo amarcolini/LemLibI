@@ -10,6 +10,8 @@
 #include "lemlib/exitcondition.hpp"
 #include "lemlib/driveCurve.hpp"
 #include "odom.hpp"
+#include "lemlib/gvf/gvf.hpp"
+#include "lemlib/geometry/path.hpp"
 
 namespace lemlib {
 
@@ -124,19 +126,6 @@ class Drivetrain {
         float wheelDiameter;
         float rpm;
         float horizontalDrift;
-};
-
-/**
- * @brief AngularDirection
- *
- * When turning, the user may want to specify the direction the robot should turn in.
- * This enum class has 3 values: CW_CLOCKWISE, CCW_COUNTERCLOCKWISE, and AUTO
- * AUTO will make the robot turn in the shortest direction, and will be the most used value
- */
-enum class AngularDirection {
-    CW_CLOCKWISE, /** turn clockwise */
-    CCW_COUNTERCLOCKWISE, /** turn counter-clockwise */
-    AUTO /** turn in the direction with the shortest distance to target */
 };
 
 /**
@@ -311,7 +300,8 @@ class Chassis {
                 Odometry* odom, DriveCurve* throttleCurve = &defaultDriveCurve,
                 DriveCurve* steerCurve = &defaultDriveCurve);
         /**
-         * @brief Calibrate the chassis sensors. THis should be called in the initialize function. Also calls Odometry::initTask().
+         * @brief Calibrate the chassis sensors. THis should be called in the initialize function. Also calls
+         * Odometry::initTask().
          *
          * @param calibrateIMU whether the IMU should be calibrated. true by default
          *
@@ -583,6 +573,9 @@ class Chassis {
          */
         void swingToPoint(float x, float y, DriveSide lockedSide, int timeout, SwingToPointParams params = {},
                           bool async = true);
+
+        void followGVF(std::function<void(Pose)> setPower, lemlib::GVFFollower follower, lemlib::Path path, int timeout,
+                       bool async);
         /**
          * @brief Move the chassis towards the target pose
          *
@@ -674,13 +667,13 @@ class Chassis {
          */
         void follow(const asset& path, float lookahead, int timeout, bool forwards = true, bool async = true);
         /**
-         * @brief Control the robot during the driver using the tank drive control scheme. In this control scheme one
-         * joystick axis controls the left motors' forward and backwards movement of the robot, while the other joystick
-         * axis controls right motors' forward and backward movement.
+         * @brief Control the robot during the driver using the tank drive control scheme. In this control scheme
+         * one joystick axis controls the left motors' forward and backwards movement of the robot, while the other
+         * joystick axis controls right motors' forward and backward movement.
          * @param left speed to move left wheels forward or backward. Takes an input from -127 to 127.
          * @param right speed to move right wheels forward or backward. Takes an input from -127 to 127.
-         * @param disableDriveCurve whether to disable the drive curve or not. If disabled, uses a linear curve with no
-         * deadzone or minimum power
+         * @param disableDriveCurve whether to disable the drive curve or not. If disabled, uses a linear curve with
+         * no deadzone or minimum power
          *
          * @b Example
          * @code {.cpp}
@@ -703,14 +696,14 @@ class Chassis {
          */
         void tank(int left, int right, bool disableDriveCurve = false);
         /**
-         * @brief Control the robot during the driver using the arcade drive control scheme. In this control scheme one
-         * joystick axis controls the forwards and backwards movement of the robot, while the other joystick axis
-         * controls the robot's turning
+         * @brief Control the robot during the driver using the arcade drive control scheme. In this control scheme
+         * one joystick axis controls the forwards and backwards movement of the robot, while the other joystick
+         * axis controls the robot's turning
          *
          * @param throttle speed to move forward or backward. Takes an input from -127 to 127.
          * @param turn speed to turn. Takes an input from -127 to 127.
-         * @param disableDriveCurve whether to disable the drive curve or not. If disabled, uses a linear curve with no
-         * deadzone or minimum power
+         * @param disableDriveCurve whether to disable the drive curve or not. If disabled, uses a linear curve with
+         * no deadzone or minimum power
          * @param desaturateBias how much to favor angular motion over lateral motion or vice versa when motors are
          * saturated. A value of 0 fully prioritizes lateral motion, a value of 1 fully prioritizes angular motion
          *
@@ -739,15 +732,15 @@ class Chassis {
          */
         void arcade(int throttle, int turn, bool disableDriveCurve = false, float desaturateBias = 0.5);
         /**
-         * @brief Control the robot during the driver using the curvature drive control scheme. This control scheme is
-         * very similar to arcade drive, except the second joystick axis controls the radius of the curve that the
-         * drivetrain makes, rather than the speed. This means that the driver can accelerate in a turn without changing
-         * the radius of that turn. This control scheme defaults to arcade when forward is zero.
+         * @brief Control the robot during the driver using the curvature drive control scheme. This control scheme
+         * is very similar to arcade drive, except the second joystick axis controls the radius of the curve that
+         * the drivetrain makes, rather than the speed. This means that the driver can accelerate in a turn without
+         * changing the radius of that turn. This control scheme defaults to arcade when forward is zero.
          *
          * @param throttle speed to move forward or backward. Takes an input from -127 to 127.
          * @param turn speed to turn. Takes an input from -127 to 127.
-         * @param disableDriveCurve whether to disable the drive curve or not. If disabled, uses a linear curve with no
-         * deadzone or minimum power
+         * @param disableDriveCurve whether to disable the drive curve or not. If disabled, uses a linear curve with
+         * no deadzone or minimum power
          *
          * @b Example
          * @code {.cpp}
@@ -876,7 +869,8 @@ class Chassis {
         PID angularPID;
     protected:
         /**
-         * @brief Indicates that this motion is queued and blocks current task until this motion reaches front of queue
+         * @brief Indicates that this motion is queued and blocks current task until this motion reaches front of
+         * queue
          */
         void requestMotionStart();
         /**

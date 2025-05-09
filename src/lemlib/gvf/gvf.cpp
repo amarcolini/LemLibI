@@ -1,187 +1,150 @@
+#include <algorithm>
 #include <functional>
 #include <cmath>
+#include <optional>
 #include "lemlib/geometry/path.hpp"
 #include "lemlib/pid.hpp"
-#include "lemlib/pose.hpp"
-#include "pros/rtos.hpp"
 #include "lemlib/util.hpp"
+#include "pros/rtos.hpp"
+#include "lemlib/gvf/gvf.hpp"
+
+static int sign(float x) { return (x > 0) - (x < 0); }
 
 namespace lemlib {
-class PathGVF {
-    public:
-        PathGVF(
-            Path& path, float kN, std::function<float(float)> errorMapFunc = [](float x) { return x; })
-            : path(path),
-              kN(kN),
-              errorMapFunc(std::move(errorMapFunc)) {}
+static float normDelta(float angle) { return wrap(angle, -M_PI, M_PI); }
 
-        struct Phi {
-                const Vector point;
-                const Vector target;
-                const Vector tangent;
-                const Vector pathToPoint;
-                const float orientation;
-                const float error;
-                const Vector normal;
+static Pose calculateRobotPoseError(Pose targetFieldPose, Pose currentFieldPose) {
+    auto errorInFieldFrame =
+        Pose((targetFieldPose - currentFieldPose).vec(), normDelta(targetFieldPose.theta - currentFieldPose.theta));
+    return Pose(errorInFieldFrame.vec().rotate(-currentFieldPose.theta), errorInFieldFrame.theta);
+}
 
-                Phi(const Vector& point, const Vector& target, const Vector& tangent)
-                    : point(point),
-                      target(target),
-                      tangent(tangent),
-                      pathToPoint(point - target),
-                      orientation(-sign(pathToPoint.x * tangent.y - pathToPoint.y * tangent.x)),
-                      error(pathToPoint.norm()),
-                      normal(Vector(-tangent.y, tangent.x)) {}
-        };
+PathGVF::PathGVF(const Path& path, const float kN, const std::function<float(float)> errorMapFunc)
+    : path(path),
+      kN(kN),
+      errorMapFunc(errorMapFunc) {}
 
-        Vector compute(const Vector& point) {
-            Phi phi = internalGet(point);
-            bool isFollowingPath = !((epsilonEquals(phi.target, path.start) && !epsilonEquals(phi.error, 0.0)) ||
-                                     epsilonEquals(phi.target, path.end));
+PathGVF::Phi::Phi(const Vector& point, const Vector& target, const Vector& tangent)
+    : target(target),
+      tangent(tangent),
+      pathToPoint(point - target),
+      orientation(-sign(pathToPoint.x * tangent.y - pathToPoint.y * tangent.x)),
+      error(pathToPoint.norm()),
+      normal(Vector(-tangent.y, tangent.x)) {}
 
-            float signedError = phi.orientation * phi.error;
+Vector PathGVF::compute(Phi phi) {
+    bool isFollowingPath = !((epsilonEquals(phi.target, path.start) && !epsilonEquals(phi.error, 0.0)) ||
+                             epsilonEquals(phi.target, path.end));
 
-            if (isFollowingPath) {
-                return phi.tangent - phi.normal * kN * errorMapFunc(signedError);
-            } else {
-                Vector normal = epsilonEquals(phi.error, 0.0) ? Vector() : (phi.pathToPoint / phi.error);
-                return normal * kN * errorMapFunc(-phi.error);
-            }
-        }
+    float signedError = phi.orientation * phi.error;
 
-        void reset() { lastProjectDisplacement = 0.0; }
-    private:
-        Path& path;
-        float kN;
-        std::function<float(float)> errorMapFunc;
-        float lastProjectDisplacement = 0.0;
+    if (isFollowingPath) {
+        return phi.tangent - phi.normal * kN * errorMapFunc(signedError);
+    } else {
+        Vector normal = epsilonEquals(phi.error, 0.0) ? Vector() : (phi.pathToPoint / phi.error);
+        return normal * kN * errorMapFunc(-phi.error);
+    }
+}
 
-        Phi internalGet(const Vector& point) {
-            float displacement = path.fastProject(point, lastProjectDisplacement, 10);
-            auto pathPoint = path[displacement];
-            Vector tangent = path.deriv(displacement);
-            lastProjectDisplacement = displacement;
-            return Phi(point, pathPoint, tangent);
-        }
-};
+void PathGVF::reset() { lastProjectDisplacement = 0.0; }
 
-// C++ translation of the Kotlin GVFFollower class
+PathGVF::Phi PathGVF::internalGet(const Vector& point) {
+    float displacement = path.fastProject(point, lastProjectDisplacement, 10);
+    auto pathPoint = path[displacement];
+    Vector tangent = path.deriv(displacement);
+    lastProjectDisplacement = displacement;
+    return Phi(point, pathPoint, tangent);
+}
 
-class GVFFollower {
-    public:
-        float maxVel;
-        float maxAccel;
-        float maxDecel;
-        float maxAngVel;
-        float maxAngAccel;
-        float kN;
-        float kOmega;
-        PID headingPID;
-        float correctionDistance = 5.0;
-        bool useCurvatureControl = false;
-        std::function<float(float)> errorMapFunc;
+GVFFollower::GVFFollower(float maxVel, float maxAccel, float maxDecel, float maxAngVel, float maxAngAccel,
+                         const Pose& admissibleError, float kN, float kOmega, const PID& headingPID,
+                         float correctionDistance, bool useCurvatureControl, std::function<float(float)> errorMapFunc)
+    : maxVel(maxVel),
+      maxAccel(maxAccel),
+      maxDecel(maxDecel),
+      maxAngVel(maxAngVel),
+      maxAngAccel(maxAngAccel),
+      kN(kN),
+      kOmega(kOmega),
+      headingPID(headingPID),
+      correctionDistance(correctionDistance),
+      useCurvatureControl(useCurvatureControl),
+      admissibleError(admissibleError),
+      errorMapFunc(errorMapFunc) {}
 
-        GVFFollower(
-            float maxVel, float maxAccel, float maxDecel, float maxAngVel, float maxAngAccel,
-            const Pose& admissibleError, float kN, float kOmega, const PID pidCoeffs, float correctionDistance = 5.0,
-            bool useCurvatureControl = false, std::function<float(float)> errorMapFunc = [](float x) { return x; })
-            : maxVel(maxVel),
-              maxAccel(maxAccel),
-              maxDecel(maxDecel),
-              maxAngVel(maxAngVel),
-              maxAngAccel(maxAngAccel),
-              kN(kN),
-              kOmega(kOmega),
-              headingPID(pidCoeffs),
-              correctionDistance(correctionDistance),
-              useCurvatureControl(useCurvatureControl),
-              errorMapFunc(errorMapFunc),
-              headingController(pidCoeffs) {
-            headingController.setInputBounds(-M_PI, M_PI);
-        }
+void GVFFollower::followPath(const Path& path) {
+    gvf.emplace(PathGVF(path, kN, errorMapFunc));
+    init();
+}
 
-        void followPath(Path& path) {
-            gvf.emplace(PathGVF(path, kN, errorMapFunc));
-            init();
-        }
-    protected:
-        Pose lastError = Pose(0.0, 0.0);
-        float lastUpdateTimestamp = 0.0;
-        float lastVel = 0.0;
-        float lastAngVel = 0.0;
-        std::optional<PathGVF> gvf;
-        PID headingController;
-        std::optional<float> lastDesiredHeading;
+void GVFFollower::init() {
+    lastUpdateTimestamp = pros::millis() / 1000.0;
+    lastVel = 0.0;
+    lastAngVel = 0.0;
+    lastDesiredHeading = 0.0;
+    headingPID.reset();
+    lastProjectedDisplacement = 0.0;
+}
 
-        void init() {
-            lastUpdateTimestamp = pros::millis() / 1000.0f;
-            lastVel = 0.0;
-            lastAngVel = 0.0;
-            lastDesiredHeading = std::nullopt;
-        }
+Pose GVFFollower::update(const Pose& currentPose, const std::optional<Pose>& currentRobotVel) {
+    if (!gvf.has_value()) return Pose(0.0, 0.0);
+    float projectedDisplacement = gvf->path.fastProject(currentPose.vec(), lastProjectedDisplacement, 10);
+    auto projectedPos = gvf->path[projectedDisplacement];
+    auto output = PathGVF::Phi(currentPose.vec(), projectedPos, gvf->path.deriv(projectedDisplacement));
+    auto gvfResult = gvf->compute(output);
 
-        DriveSignal internalUpdate(const Pose& currentPose, const std::optional<Pose>& currentRobotVel,
-                                   const Pose& projectedPose, float projectedDisplacement) override {
-            auto output = GuidingVectorField::Query(currentPose.vec())
-                              .Phi(currentPose.vec(), projectedPos, gvf.path.deriv(projectedDisplacement));
-            auto gvfResult = gvf->compute(output);
+    float initialDesiredHeading = std::atan2(gvfResult.y, gvfResult.x);
+    float initialHeadingError = normDelta(initialDesiredHeading - currentPose.theta);
 
-            float initialDesiredHeading = std::atan2(gvfResult.y, gvfResult.x);
-            float initialHeadingError = (initialDesiredHeading - currentPose.theta).normDelta();
+    bool atTarget = epsilonEquals(output.target, gvf->path.end);
+    float remainingDistance = currentPose.vec().distTo(gvf->path.end);
 
-            bool atTarget = (output.target epsilonEquals gvf->endPosition());
-            auto pathEnd = path.end();
-            float remainingDistance = currentPose.vec().distTo(pathEnd.vec());
+    bool reversed = atTarget && output.error < correctionDistance && std::abs(initialHeadingError) > M_PI / 2.0;
+    float desiredHeading = initialDesiredHeading + (reversed ? M_PI : 0.0);
+    float headingError = normDelta(desiredHeading - currentPose.theta);
 
-            bool reversed =
-                atTarget && output.error < correctionDistance && initialHeadingError.abs() > Angle::quarterCircle();
-            Angle desiredHeading = initialDesiredHeading + (reversed ? Angle::halfCircle() : 0_rad);
-            Angle headingError = (desiredHeading - currentPose.heading).normDelta();
-            headingController.setTargetPosition(desiredHeading.radians());
+    float timestamp = pros::millis() / 1000.0;
+    float dt = timestamp - lastUpdateTimestamp;
 
-            float timestamp = clock->seconds();
-            float dt = timestamp - lastUpdateTimestamp;
+    std::optional<float> desiredOmega =
+        lastDesiredHeading ? std::make_optional(normDelta(desiredHeading - *lastDesiredHeading) / dt) : std::nullopt;
 
-            std::optional<Angle> desiredOmega =
-                lastDesiredHeading ? std::make_optional((desiredHeading - *lastDesiredHeading).normDelta() / dt)
-                                   : std::nullopt;
+    float omega = desiredOmega ? ((remainingDistance > correctionDistance ? *desiredOmega * kOmega : 0.0) +
+                                  headingPID.update(headingError))
+                               : 0.0;
 
-            Angle omega = desiredOmega ? ((remainingDistance > correctionDistance ? *desiredOmega * kOmega : 0_rad) +
-                                          headingController.update(currentPose.heading.radians()).rad())
-                                       : 0_rad;
+    lastDesiredHeading = desiredHeading;
 
-            lastDesiredHeading = desiredHeading;
+    float maxVelToStop = std::sqrt(2 * maxDecel * remainingDistance);
+    float maxVelFromLast = lastVel + maxAccel * dt;
+    float maxAngVelFromLast = desiredOmega ? lastAngVel + maxAngAccel * dt * sign(*desiredOmega - lastAngVel) : 0.0;
+    float angVel =
+        maxAngVelFromLast >= 0.0 ? std::min(maxAngVelFromLast, maxAngVel) : std::max(maxAngVelFromLast, -maxAngVel);
 
-            float maxVelToStop = std::sqrt(2 * maxDecel * remainingDistance);
-            float maxVelFromLast = lastVel + maxAccel * dt;
-            Angle maxAngVelFromLast =
-                desiredOmega ? lastAngVel + maxAngAccel * dt * sign(*desiredOmega - lastAngVel) : 0_rad;
-            Angle angVel = maxAngVelFromLast >= 0_rad ? std::min(maxAngVelFromLast, maxAngVel)
-                                                      : std::max(maxAngVelFromLast, -maxAngVel);
+    float maxVelForCurvature = INFINITY;
+    if (useCurvatureControl && output.error < correctionDistance && lastVel > 5.0 && lastDesiredHeading) {
+        float targetOmega = gvf->path.tangentAngleDeriv(projectedDisplacement);
+        if (!epsilonEquals(targetOmega, 0.0)) { maxVelForCurvature = lastVel * std::abs(angVel / targetOmega); }
+    }
 
-            float maxVelForCurvature = Float::INFINITY;
-            if (useCurvatureControl && output.error < correctionDistance && lastVel > 5.0 && lastDesiredHeading) {
-                auto seg = path.segment(gvf->lastProjectDisplacement());
-                Angle targetOmega = seg.first.curve.tangentAngleDeriv(seg.second);
-                if (!(targetOmega epsilonEquals 0_rad)) {
-                    maxVelForCurvature = lastVel * std::abs(angVel / targetOmega);
-                }
-            }
+    float velocity = std::min({maxVelFromLast, maxVelToStop, maxVel, maxVelForCurvature});
+    velocity = std::max(velocity, 0.0f);
 
-            float velocity = std::min({maxVelFromLast, maxVelToStop, maxVel, maxVelForCurvature});
-            velocity = std::max(velocity, 0.0);
+    lastUpdateTimestamp = timestamp;
+    lastVel = velocity;
+    lastAngVel = angVel;
 
-            lastUpdateTimestamp = timestamp;
-            lastVel = velocity;
-            lastAngVel = angVel;
+    lastError = calculateRobotPoseError(Pose(output.target.x, output.target.y, output.tangent.angle()), currentPose);
 
-            lastError = Kinematics::calculateRobotPoseError(Pose(output.target, output.tangent.angle()), currentPose);
+    bool inhibitMotion =
+        (remainingDistance < correctionDistance && std::abs(headingError) > 15 * M_PI / 180.0) ||
+        (remainingDistance < admissibleError.vec().norm() && std::abs(headingError) > admissibleError.theta);
 
-            bool inhibitMotion =
-                (remainingDistance < correctionDistance && headingError.abs() > Angle::degrees(15)) ||
-                (remainingDistance < admissibleError.vec().norm() && headingError.abs() > admissibleError.heading);
+    return Pose(velocity * (reversed ? -1.0 : 1.0) * (inhibitMotion ? 0.0 : 1.0), 0.0, omega);
+}
 
-            return DriveSignal(Pose(velocity * (reversed ? -1.0 : 1.0) * (inhibitMotion ? 0.0 : 1.0), 0.0, omega));
-        }
-};
-} // namespace lemlib
+bool GVFFollower::isFollowing() {
+    return std::abs(lastError.x) < admissibleError.x && std::abs(lastError.y) < admissibleError.y &&
+           std::abs(normDelta(lastError.theta)) < admissibleError.theta;
+}
+}; // namespace lemlib
