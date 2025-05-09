@@ -6,6 +6,13 @@
 #include "lemlib/pose.hpp"
 
 namespace lemlib {
+
+constexpr float EPSILON = 1e-6;
+
+bool epsilonEquals(float a, float b);
+
+bool epsilonEquals(const Vector& a, const Vector& b);
+
 /**
  * @brief Slew rate limiter
  *

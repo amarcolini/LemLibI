@@ -2,6 +2,12 @@
 #include "lemlib/pose.hpp"
 #include "lemlib/util.hpp"
 
+bool lemlib::epsilonEquals(float a, float b) { return std::abs(a - b) < EPSILON; }
+
+bool lemlib::epsilonEquals(const Vector& a, const Vector& b) {
+    return epsilonEquals(a.x, b.x) && epsilonEquals(a.y, b.y);
+}
+
 float lemlib::slew(float target, float current, float maxChange) {
     float change = target - current;
     if (maxChange == 0) return target;

@@ -25,8 +25,15 @@ class Path {
         // Returns the segment at s along the path
         std::pair<QuinticSpline, float> getSegment(float s) const;
 
+        const Vector start;
+        const Vector end;
+
         // Returns the pose at s units along the path
         Vector get(float s) const;
+
+        Vector operator[](float s) {
+            return get(s);
+        }
 
         // Returns the derivative of the pose at s units along the path
         Vector deriv(float s) const;

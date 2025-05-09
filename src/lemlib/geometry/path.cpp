@@ -7,7 +7,9 @@
 
 namespace lemlib {
 Path::Path(const std::vector<QuinticSpline> segments)
-    : segments(segments) {
+    : segments(segments),
+      start(segments[0].internalGet(0)),
+      end(segments.back().internalGet(1.0)) {
     if (segments.empty()) { throw std::invalid_argument("A Path cannot be initialized without segments."); }
 }
 

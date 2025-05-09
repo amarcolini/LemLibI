@@ -11,10 +11,9 @@ Vector QuinticSpline::internalGet(float t) const {
     return Vector {x(t), y(t)}; // Replace with actual evaluation
 }
 
-float QuinticSpline::curvature(float s) const {
-    auto t = reparam(s);
+float QuinticSpline::curvature(float t) const {
     auto deriv = internalDeriv(t);
-    auto secondDeriv = internalSecondDeriv(s);
+    auto secondDeriv = internalSecondDeriv(t);
     return (deriv.cross(secondDeriv)) / powf(deriv.squaredNorm(), 1.5);
 }
 
@@ -71,7 +70,7 @@ void QuinticSpline::ArcLengthParameterization::parameterize(float tLo, float tHi
     Vector vMid = spline.internalGet(tMid);
     Vector vHi = spline.internalGet(tHi);
 
-    float deltaK = std::abs(spline.curvature(0.0, tLo) - spline.curvature(0.0, tHi));
+    float deltaK = std::abs(spline.curvature(tLo) - spline.curvature(tHi));
     float segmentLength = vLo.distTo(vMid) + vMid.distTo(vHi);
 
     if (depth < 15 && (deltaK > 0.01 || segmentLength > 0.25)) {
